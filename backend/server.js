@@ -462,7 +462,7 @@ app.post('/', async (req, res) => {
       return res.json({ ok: true, user: pubUser(user) });
     }
 
-    if (!emailOk(email) && action !== 'precheck' && action !== 'register' && action !== 'migrate') {
+    if (!emailOk(email) && action !== 'precheck' && action !== 'register' && action !== 'migrate' && action !== 'whoami') {
       return res.status(400).json({ ok: false, message: 'Enter a valid email address' });
     }
 
