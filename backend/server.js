@@ -392,10 +392,19 @@ app.get('/', (req, res) => res.json({ ok: true, service: 'streammax-auth' }));
 
 app.post('/', async (req, res) => {
   const body = req.body || {};
-  // Render's proxy appends the real client address to X-Forwarded-For, so the
-  // LAST entry is the trustworthy one (a client can spoof the leftmost).
-  const xff = String(req.headers['x-forwarded-for'] || '').split(',').map(v => v.trim()).filter(Boolean);
-  const clientIp = xff.length ? xff[xff.length - 1] : String(req.socket && req.socket.remoteAddress || '');
+  /* Real client IP. The request path is client -> Cloudflare -> Render's
+     internal proxy, so X-Forwarded-For looks like
+     "<client>, <cloudflare>, <private internal ip>" and the internal hop
+     rotates on every request (unusable for rate limiting).
+     Resolution: Cloudflare's CF-Connecting-IP first, then the first PUBLIC
+     address in X-Forwarded-For (private/internal hops are skipped). */
+  const isPrivateIp = (v) => !v || /^10\./.test(v) || /^192\.168\./.test(v)
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(v) || /^127\./.test(v) || v === '::1' || v === 'localhost';
+  const xffList = String(req.headers['x-forwarded-for'] || '').split(',').map(v => v.trim()).filter(Boolean);
+  const clientIp = String(req.headers['cf-connecting-ip'] || req.headers['true-client-ip'] || '').trim()
+    || xffList.find(v => !isPrivateIp(v))
+    || xffList[xffList.length - 1]
+    || String(req.socket && req.socket.remoteAddress || '');
   const action = String(body.action || '');
   const email = String(body.email || '').trim().toLowerCase();
 
@@ -497,6 +506,7 @@ app.post('/', async (req, res) => {
       const d0 = await getDb();
       return res.json({
         xffRaw: req.headers['x-forwarded-for'] || null,
+        cf: req.headers['cf-connecting-ip'] || null,
         resolved: clientIp,
         recent: await d0.collection('ipAttempts').countDocuments({ ip: clientIp, ts: { $gt: new Date(Date.now() - 3600000) } }),
         total: await d0.collection('ipAttempts').countDocuments({}),
