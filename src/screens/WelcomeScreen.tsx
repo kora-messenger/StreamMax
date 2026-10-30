@@ -8,10 +8,13 @@ import {
   Pressable,
   StatusBar,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
 import LinearGradient from 'react-native-linear-gradient';
+import { GradientText } from '../components/ui';
 import { FeatureBolt, FeatureClapper, FeatureDevices, FeatureHeart } from '../components/icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -19,30 +22,54 @@ type Props = {
   onGetStarted?: () => void;
 };
 
-// Ijezie's corrected layout (2026-10-24): standard RN, top hero + gradient
-// fade, no page dots. Hero art = cinematic TV-room scene; neon play logo.
+/**
+ * Welcome screen — refined 2026-10-30.
+ *  - "Max" carries the cyan -> blue -> purple gradient directly on the
+ *    letters (real SVG gradient text, no box behind it), baseline-locked
+ *    to the white "Stream".
+ *  - The whole column lives in a flexGrow ScrollView: on tall screens the
+ *    spacer pins Get Started near the bottom; on short screens the content
+ *    scrolls instead of clipping the button.
+ *  - Bottom padding respects the safe-area inset (gesture and 3-button nav),
+ *    so the CTA is always fully visible and tappable.
+ */
 const POSTER = require('../assets/img/welcome_hero.png');
 const LOGO = require('../assets/img/logo_splash.png');
 
+const MAX_GRADIENT = ['#00E5FF', '#2979FF', '#7D2AE8'];
+
 export default function WelcomeScreen({ onGetStarted }: Props) {
   const nav = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 
   const compact = height < 740;
-  const posterHeight = Math.min(height * 0.44, 390);
+  const posterHeight = Math.round(Math.min(height * 0.39, 380));
+
+  const logoSize = compact ? 64 : 76;
+  const wordSize = compact ? 38 : 43;
+  const taglineSize = compact ? 18 : 20;
+  const featureIcon = compact ? 28 : 32;
 
   const features = [
-    { icon: <FeatureClapper size={compact ? 28 : 32} />, label: 'Thousands\nof Movies & Shows' },
-    { icon: <FeatureDevices size={compact ? 28 : 32} />, label: 'Watch on\nAny Device' },
-    { icon: <FeatureBolt size={compact ? 28 : 32} />, label: 'High Quality\nStreaming' },
-    { icon: <FeatureHeart size={compact ? 28 : 32} />, label: 'Personalized\nJust for You' },
+    { icon: <FeatureClapper size={featureIcon} />, label: 'Thousands\nof Movies & Shows' },
+    { icon: <FeatureDevices size={featureIcon} />, label: 'Watch on\nAny Device' },
+    { icon: <FeatureBolt size={featureIcon} />, label: 'High Quality\nStreaming' },
+    { icon: <FeatureHeart size={featureIcon} />, label: 'Personalized\nJust for You' },
   ];
 
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom, 14) + 18 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {/* EXISTING CINEMATIC MOVIE POSTER */}
         <View style={[styles.posterContainer, { height: posterHeight }]}>
           <ImageBackground
@@ -69,25 +96,32 @@ export default function WelcomeScreen({ onGetStarted }: Props) {
         <View style={styles.brandSection}>
           <Image
             source={LOGO}
-            style={styles.logo}
+            style={[styles.logo, { width: logoSize, height: logoSize }]}
             resizeMode="contain"
             accessibilityLabel="StreamMax logo"
           />
 
-          <View style={styles.titleRow}>
-            <Text style={styles.titleWhite}>Stream</Text>
-
-            <LinearGradient
-              colors={['#06D6F5', '#2875FF', '#A020F0']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientText}
+          {/* wordmark: white "Stream" + gradient "Max" on the same baseline */}
+          <View style={styles.titleRow} accessibilityLabel="StreamMax">
+            <Text
+              style={[
+                styles.titleWhite,
+                { fontSize: wordSize, letterSpacing: -1.5 },
+              ]}
             >
-              <Text style={styles.titleGradient}>Max</Text>
-            </LinearGradient>
+              Stream
+            </Text>
+            <GradientText
+              text="Max"
+              size={wordSize}
+              width={Math.round(wordSize * 2.1)}
+              height={Math.round(wordSize * 1.2)}
+              weight="800"
+              colorsArr={MAX_GRADIENT}
+            />
           </View>
 
-          <Text style={styles.tagline}>
+          <Text style={[styles.tagline, { fontSize: taglineSize }]}>
             Your Movies. Your Way.
           </Text>
 
@@ -118,6 +152,10 @@ export default function WelcomeScreen({ onGetStarted }: Props) {
           ))}
         </View>
 
+        {/* flexible spacer: pins the CTA on tall screens, collapses when the
+            content is taller than the screen (then the screen scrolls) */}
+        <View style={styles.spacer} />
+
         {/* GET STARTED BUTTON */}
         <View style={styles.bottomSection}>
           <Pressable
@@ -147,10 +185,7 @@ export default function WelcomeScreen({ onGetStarted }: Props) {
             </LinearGradient>
           </Pressable>
         </View>
-
-        {/* flexible spacer pins the CTA to the bottom */}
-        <View style={styles.spacer} />
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -162,8 +197,7 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    flex: 1,
-    paddingBottom: 28,
+    flexGrow: 1,
   },
 
   posterContainer: {
@@ -184,38 +218,22 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: 76,
-    height: 76,
     marginBottom: 4,
   },
 
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
 
   titleWhite: {
     color: '#FFFFFF',
-    fontSize: 43,
     fontWeight: '800',
-    letterSpacing: -1.8,
-  },
-
-  gradientText: {
-    borderRadius: 3,
-  },
-
-  titleGradient: {
-    color: '#39C8FF',
-    fontSize: 43,
-    fontWeight: '800',
-    letterSpacing: -1.8,
   },
 
   tagline: {
     color: '#FFFFFF',
-    fontSize: 20,
     fontWeight: '700',
     marginTop: 12,
     textAlign: 'center',
@@ -226,20 +244,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     textAlign: 'center',
-    marginTop: 25,
+    marginTop: 16,
     maxWidth: 440,
   },
 
   featuresRow: {
     flexDirection: 'row',
     alignSelf: 'center',
-    marginTop: 35,
-    marginBottom: 30,
+    marginTop: 24,
+    marginBottom: 8,
   },
 
   compactFeatures: {
-    marginTop: 23,
-    marginBottom: 20,
+    marginTop: 16,
+    marginBottom: 6,
   },
 
   feature: {
@@ -269,15 +287,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
+  spacer: {
+    flexGrow: 1,
+    minHeight: 16,
+  },
+
   bottomSection: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 8,
     paddingHorizontal: 24,
-  },
-
-  spacer: {
-    flex: 1,
   },
 
   buttonWrapper: {
@@ -298,13 +317,14 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    minHeight: 62,
+    minHeight: 60,
     borderRadius: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 13,
     paddingHorizontal: 20,
+    paddingVertical: 8,
   },
 
   buttonText: {
