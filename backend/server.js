@@ -493,6 +493,17 @@ app.post('/', async (req, res) => {
     }
 
     /* --- check credentials / complete a login after the code --- */
+    if (action === 'whoami') {
+      const d0 = await getDb();
+      return res.json({
+        xffRaw: req.headers['x-forwarded-for'] || null,
+        resolved: clientIp,
+        recent: await d0.collection('ipAttempts').countDocuments({ ip: clientIp, ts: { $gt: new Date(Date.now() - 3600000) } }),
+        total: await d0.collection('ipAttempts').countDocuments({}),
+        ips: (await d0.collection('ipAttempts').find({}).sort({ ts: -1 }).limit(6).toArray()).map(a => a.ip + '|' + a.kind),
+      });
+    }
+
     if (action === 'login') {
       if (!emailOk(email)) return res.json({ ok: false, field: 'email', message: 'Enter a valid email address' });
 
