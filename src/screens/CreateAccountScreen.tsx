@@ -68,7 +68,7 @@ export default function CreateAccountScreen() {
       try {
         const g = await googleSignInToken();
         if (!g.ok) { if (g.message) setBanner(g.message); return; }
-        const r = await auth.googleTokenLogin(g.idToken!);
+        const r = await auth.googleTokenLogin(g.idToken!, { googleId: g.googleId, photo: g.photo });
         if (!r.ok) { setBanner(r.message || 'Google sign-in failed. Try again.'); return; }
         nav.reset({ index: 0, routes: [{ name: 'Home' }] });
       } finally {

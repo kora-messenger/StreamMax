@@ -173,8 +173,17 @@ export async function checkCode(email: string, type: CodeType, code: string): Pr
  * the account is created server-side keyed to that email, and we open the
  * session. No emailed code is involved.
  */
-export async function googleTokenLogin(idToken: string): Promise<AuthResult> {
-  const r = await callAuth({ action: 'googleVerify', idToken, device: deviceDescription() });
+export async function googleTokenLogin(
+  idToken: string,
+  extra?: { googleId?: string; photo?: string },
+): Promise<AuthResult> {
+  const r = await callAuth({
+    action: 'googleVerify',
+    idToken,
+    device: deviceDescription(),
+    googleId: extra?.googleId || undefined,
+    photo: extra?.photo || undefined,
+  });
   if (!r.ok) return { ok: false, message: r.message || 'Google could not verify that sign-in. Try again.' };
   if (!r.user) return { ok: false, message: 'Could not sign you in' };
   await openSession(r.user, true);

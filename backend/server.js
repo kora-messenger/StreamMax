@@ -422,11 +422,21 @@ app.post('/', async (req, res) => {
       } catch {
         return res.status(502).json({ ok: false, message: 'Could not reach Google right now. Try again.' });
       }
-      if (!info || !info.email || info.aud !== GOOGLE_WEB_CLIENT_ID) {
+      if (!info || info.error || !info.email || info.aud !== GOOGLE_WEB_CLIENT_ID) {
+        return res.status(401).json({ ok: false, message: 'Google could not verify that sign-in. Try again.' });
+      }
+      // Google only puts email in the token for accounts whose email it has
+      // verified; if it explicitly says otherwise, refuse.
+      if (String(info.email_verified) === 'false') {
+        return res.status(401).json({ ok: false, message: 'Google has not verified that account\'s email address.' });
+      }
+      if (info.iss !== 'https://accounts.google.com' && info.iss !== 'accounts.google.com') {
         return res.status(401).json({ ok: false, message: 'Google could not verify that sign-in. Try again.' });
       }
       const gEmail = String(info.email).toLowerCase();
       const gName = String(info.name || '');
+      const gIdTokenSub = String(info.sub || body.googleId || '');
+      const gPhoto = String(info.picture || body.photo || '');
       let user = await findUser(gEmail);
       const wasReturning = !!user;
       if (!user) {
@@ -435,10 +445,16 @@ app.post('/', async (req, res) => {
           fullName: (gName || gEmail.split('@')[0]).trim(),
           email: gEmail, salt, hash: scryptHash(crypto.randomBytes(12).toString('hex'), salt),
           pwLegacy: false, google: true, createdAt: new Date(),
+          ...(gIdTokenSub ? { googleId: gIdTokenSub } : {}),
+          ...(gPhoto ? { avatarUrl: gPhoto } : {}),
         });
         user = await findUser(gEmail);
-      } else if (gName && (!user.google || user.fullName === gEmail.split('@')[0])) {
-        await d.collection('users').updateOne({ email: gEmail }, { $set: { fullName: gName, google: true } });
+      } else {
+        const patch = { google: true };
+        if (gName && (!user.google || user.fullName === gEmail.split('@')[0])) patch.fullName = gName;
+        if (gIdTokenSub && !user.googleId) patch.googleId = gIdTokenSub;
+        if (gPhoto && !user.avatarUrl) patch.avatarUrl = gPhoto;
+        await d.collection('users').updateOne({ email: gEmail }, { $set: patch });
         user = await findUser(gEmail);
       }
       if (wasReturning) {
