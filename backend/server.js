@@ -330,9 +330,11 @@ const IP_WINDOW_MS = 15 * 60 * 1000;
 const IP_MAX_FAILS = 20;      // failed auth attempts per IP per 15 min
 const IP_MAX_CODE_REQ = 20;   // code requests per IP per hour
 
-async function ipFailureCount(d, ip, windowMs) {
+async function ipFailureCount(d, ip, windowMs, kind) {
   if (!ip) return 0;
-  return d.collection('ipAttempts').countDocuments({ ip, ts: { $gt: new Date(Date.now() - windowMs) } });
+  const q = { ip, ts: { $gt: new Date(Date.now() - windowMs) } };
+  if (kind) q.kind = kind;
+  return d.collection('ipAttempts').countDocuments(q);
 }
 
 async function ipGate(d, ip) {
@@ -553,7 +555,7 @@ app.post('/', async (req, res) => {
           return res.status(429).json({ ok: false, message: `Too many attempts from this network. Try again in ${gate.minutes} minutes.` });
         }
       } else {
-        const reqs = await ipFailureCount(d, clientIp, 60 * 60 * 1000);
+        const reqs = await ipFailureCount(d, clientIp, 60 * 60 * 1000, 'sendCode');
         if (reqs >= IP_MAX_CODE_REQ) {
           return res.status(429).json({ ok: false, message: 'Too many codes requested from this network. Try again later.' });
         }
