@@ -52,6 +52,8 @@ async function getDb() {
     db = client.db('streammax');
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('codes').createIndex({ createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
+    await db.collection('ipAttempts').createIndex({ ts: 1 }, { expireAfterSeconds: 60 * 60 }); // IP attempt log self-cleans
+    await db.collection('ipAttempts').createIndex({ ip: 1, ts: -1 });
   }
   return db;
 }
@@ -313,6 +315,70 @@ function validateRegistration(fullName, email, password, confirm) {
   return { ok: true };
 }
 
+/* ---------- brute-force protection ----------
+   Two layers working together:
+   1. ACCOUNT LOCKOUT — consecutive failed passwords on one account lock it,
+      progressively: 5 fails -> 15 min -> 1 h -> 24 h. A successful sign-in
+      clears the counter and the escalation level.
+   2. IP RATE LIMITING — failed auth attempts are logged per client IP and
+      capped inside a rolling window, which stops spraying many accounts
+      from one network. Code requests are capped per IP per hour too. */
+
+const LOCK_THRESHOLD = 5;
+const LOCK_TIERS_MIN = [15, 60, 1440];
+const IP_WINDOW_MS = 15 * 60 * 1000;
+const IP_MAX_FAILS = 20;      // failed auth attempts per IP per 15 min
+const IP_MAX_CODE_REQ = 20;   // code requests per IP per hour
+
+async function ipFailureCount(d, ip, windowMs) {
+  if (!ip) return 0;
+  return d.collection('ipAttempts').countDocuments({ ip, ts: { $gt: new Date(Date.now() - windowMs) } });
+}
+
+async function ipGate(d, ip) {
+  const fails = await ipFailureCount(d, ip, IP_WINDOW_MS);
+  if (fails >= IP_MAX_FAILS) {
+    return { blocked: true, minutes: Math.ceil(IP_WINDOW_MS / 60000) };
+  }
+  return { blocked: false };
+}
+
+async function noteIpFailure(d, ip, kind) {
+  if (!ip) return;
+  await d.collection('ipAttempts').insertOne({ ip, kind, ts: new Date() });
+}
+
+/** Lock an account after too many consecutive failed passwords. */
+async function noteAccountFailure(d, user, ip) {
+  await noteIpFailure(d, ip, 'login');
+  const failed = (user.failedLogins || 0) + 1;
+  if (failed >= LOCK_THRESHOLD) {
+    const level = Math.min(user.lockLevel || 0, LOCK_TIERS_MIN.length - 1);
+    const minutes = LOCK_TIERS_MIN[level];
+    await d.collection('users').updateOne({ email: user.email }, {
+      $set: {
+        failedLogins: 0,
+        lockLevel: level + 1,
+        lockUntil: new Date(Date.now() + minutes * 60000),
+        lastFailedAt: new Date(),
+      },
+    });
+    return { locked: true, minutes };
+  }
+  await d.collection('users').updateOne({ email: user.email }, {
+    $set: { failedLogins: failed, lastFailedAt: new Date() },
+  });
+  return { locked: false, remaining: LOCK_THRESHOLD - failed };
+}
+
+/** Clear the lockout counters after a successful sign-in. */
+async function clearAccountFailures(d, email) {
+  await d.collection('users').updateOne(
+    { email },
+    { $set: { failedLogins: 0, lockLevel: 0 }, $unset: { lockUntil: '' } },
+  );
+}
+
 async function findUser(email) {
   const d = await getDb();
   return d.collection('users').findOne({ email });
@@ -324,7 +390,10 @@ app.get('/', (req, res) => res.json({ ok: true, service: 'streammax-auth' }));
 
 app.post('/', async (req, res) => {
   const body = req.body || {};
-  const clientIp = String((req.headers['x-forwarded-for'] || '').split(',')[0] || '').trim();
+  // Render's proxy appends the real client address to X-Forwarded-For, so the
+  // LAST entry is the trustworthy one (a client can spoof the leftmost).
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',').map(v => v.trim()).filter(Boolean);
+  const clientIp = xff.length ? xff[xff.length - 1] : String(req.socket && req.socket.remoteAddress || '');
   const action = String(body.action || '');
   const email = String(body.email || '').trim().toLowerCase();
 
@@ -424,11 +493,48 @@ app.post('/', async (req, res) => {
     /* --- check credentials / complete a login after the code --- */
     if (action === 'login') {
       if (!emailOk(email)) return res.json({ ok: false, field: 'email', message: 'Enter a valid email address' });
-      const user = await findUser(email);
-      if (!user) return res.json({ ok: false, field: 'email', message: 'No account found with this email' });
-      if (!verifyPassword(String(body.password || ''), user)) {
-        return res.json({ ok: false, field: 'password', message: 'Incorrect password' });
+
+      // layer 2: IP rate limit
+      const gate = await ipGate(d, clientIp);
+      if (gate.blocked) {
+        return res.status(429).json({
+          ok: false,
+          message: `Too many attempts from this network. Try again in ${gate.minutes} minutes.`,
+        });
       }
+
+      const user = await findUser(email);
+      if (!user) {
+        await noteIpFailure(d, clientIp, 'login');
+        return res.json({ ok: false, field: 'email', message: 'No account found with this email' });
+      }
+
+      // layer 1: account lockout
+      if (user.lockUntil && new Date(user.lockUntil).getTime() > Date.now()) {
+        const mins = Math.max(1, Math.ceil((new Date(user.lockUntil).getTime() - Date.now()) / 60000));
+        return res.status(423).json({
+          ok: false,
+          message: `Too many failed attempts. This account is locked for ${mins} more minute${mins === 1 ? '' : 's'}.`,
+        });
+      }
+
+      if (!verifyPassword(String(body.password || ''), user)) {
+        const res2 = await noteAccountFailure(d, user, clientIp);
+        if (res2.locked) {
+          return res.status(423).json({
+            ok: false,
+            message: `Too many failed attempts. This account is locked for ${res2.minutes} minutes.`,
+          });
+        }
+        const left = res2.remaining;
+        return res.json({
+          ok: false,
+          field: 'password',
+          message: `Incorrect password.${left <= 2 ? ` ${left} attempt${left === 1 ? '' : 's'} left before the account is locked.` : ''}`,
+        });
+      }
+
+      await clearAccountFailures(d, email);
       await upgradeToScrypt(email, user, String(body.password));
       const fresh = await findUser(email);
       return res.json({ ok: true, user: pubUser(fresh) });
@@ -439,6 +545,20 @@ app.post('/', async (req, res) => {
     if (action === 'sendCode' || action === 'verifyCode') {
       if (!TYPES.includes(type)) return res.status(400).json({ ok: false, message: 'Unknown code type' });
       const now = Date.now();
+
+      // IP rate limiting on the code endpoints as well
+      if (action === 'verifyCode') {
+        const gate = await ipGate(d, clientIp);
+        if (gate.blocked) {
+          return res.status(429).json({ ok: false, message: `Too many attempts from this network. Try again in ${gate.minutes} minutes.` });
+        }
+      } else {
+        const reqs = await ipFailureCount(d, clientIp, 60 * 60 * 1000);
+        if (reqs >= IP_MAX_CODE_REQ) {
+          return res.status(429).json({ ok: false, message: 'Too many codes requested from this network. Try again later.' });
+        }
+        await noteIpFailure(d, clientIp, 'sendCode');
+      }
 
       if (action === 'sendCode') {
         // rate limit: max MAX_PER_HOUR live codes per email+type per hour
@@ -480,6 +600,7 @@ app.post('/', async (req, res) => {
         return res.status(400).json({ ok: false, message: 'Too many wrong attempts. Request a new code.' });
       }
       await d.collection('codes').updateOne({ _id: rec._id }, { $set: { attempts } });
+      await noteIpFailure(d, clientIp, 'verifyCode');
       return res.status(400).json({ ok: false, message: 'Incorrect code. Please try again.' });
     }
 

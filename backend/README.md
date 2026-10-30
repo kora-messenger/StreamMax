@@ -20,6 +20,24 @@ ID tokens directly. The app speaks the same JSON contract it always did
 | `emailExists` | `email` | `{ ok, exists }` |
 | `migrate` | `accounts: [{fullName,email,salt,hash}]` | `{ ok, imported }` (one-time import of old device-local accounts) |
 
+## Brute-force protection (2026-10-30)
+
+Two layers work together on the sign-in endpoints:
+
+- **Account lockout** — 5 consecutive failed passwords lock the account,
+  escalating on repeat: 15 minutes, then 1 hour, then 24 hours. A
+  successful sign-in resets both the counter and the escalation level.
+  Locked accounts return HTTP 423 with the remaining lock time. Wrong
+  passwords report the attempts left (once down to the last two).
+- **IP rate limiting** — failed auth attempts are logged per client IP
+  (`ipAttempts`, TTL 1 h) and capped at 20 per rolling 15-minute window;
+  exceeding it returns HTTP 429 for that network. Code requests
+  (`sendCode`) are capped at 20 per IP per hour, and wrong codes count
+  against the IP budget, so spraying many accounts from one network is
+  slowed even when each account individually looks fine.
+- The client IP comes from the **last** `X-Forwarded-For` entry (added by
+  Render's proxy); the leftmost entry is client-controllable and ignored.
+
 ## Transactional emails (Brevo)
 
 Beyond verification codes, the API sends two security/lifecycle emails
