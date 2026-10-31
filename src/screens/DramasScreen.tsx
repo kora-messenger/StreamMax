@@ -6,6 +6,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import Skeleton from '../components/Skeleton';
+import { hasLoaded, markLoaded } from '../core/sessionLoad';
 import { useNavigation } from '@react-navigation/native';
 import BottomNavBar, { BottomTabId } from '../components/BottomNavBar';
 import { colors, gradients } from '../theme/tokens';
@@ -127,7 +128,7 @@ export default function DramasScreen() {
   const { width: W } = useWindowDimensions();
   const [chip, setChip] = useState('latest');
   const [q, setQ] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasLoaded('dramas'));
   const [online, setOnline] = useState(true);
   const cardW = Math.round(W * 0.62);
   /* network-driven loading: offline = the skeleton stays up ("just loading");
@@ -141,10 +142,11 @@ export default function DramasScreen() {
     return () => unsub();
   }, []);
   useEffect(() => {
-    if (!online) return; // keep the skeleton while offline
-    const t = setTimeout(() => setLoading(false), 1200);
+    if (!loading) return;            // already loaded earlier this app run
+    if (!online) return;             // keep the skeleton while offline
+    const t = setTimeout(() => { markLoaded('dramas'); setLoading(false); }, 1200);
     return () => clearTimeout(t);
-  }, [online]);
+  }, [online, loading]);
   const newArrivals =
     chip === 'latest' ? dramasNew : chip === 'hottest' ? dramasTop : [...dramasNew, ...dramasTop].slice(0, 10);
 

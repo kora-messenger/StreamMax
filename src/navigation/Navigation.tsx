@@ -41,10 +41,10 @@ export default function Navigation() {
         <Stack.Screen name="EnterCode" component={EnterCodeScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="Dramas" component={DramasScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Dramas" component={DramasScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="DramaPlayer" component={DramaPlayerScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="MovieView" component={MovieViewScreen} options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="Me" component={MeScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Me" component={MeScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="About" component={AboutScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="Browser" component={InAppBrowserScreen} options={{ animation: 'slide_from_right' }} />

@@ -12,6 +12,7 @@ import { Alert } from 'react-native';
 import { getCurrentUser, logout, AuthUser } from '../core/auth/authService';
 import BottomNavBar, { BottomTabId } from '../components/BottomNavBar';
 import Skeleton from '../components/Skeleton';
+import { hasLoaded, markLoaded } from '../core/sessionLoad';
 import { useToast } from '../components/ui';
 import NetInfo from '@react-native-community/netinfo';
 import { colors, gradients } from '../theme/tokens';
@@ -87,7 +88,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(1);
   const [me, setMe] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasLoaded('home'));
   const [online, setOnline] = useState(true);
   useEffect(() => { getCurrentUser().then(setMe); }, []);
   /* network-driven loading — same as Dramas: offline keeps the skeleton up */
@@ -98,10 +99,11 @@ export default function HomeScreen() {
     return () => unsub();
   }, []);
   useEffect(() => {
+    if (!loading) return;            // already loaded earlier this app run
     if (!online) return;
-    const tm = setTimeout(() => setLoading(false), 1200);
+    const tm = setTimeout(() => { markLoaded('home'); setLoading(false); }, 1200);
     return () => clearTimeout(tm);
-  }, [online]);
+  }, [online, loading]);
 
   const signOut = () => {
     if (!me) return;
