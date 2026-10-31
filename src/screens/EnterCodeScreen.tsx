@@ -209,23 +209,27 @@ export default function EnterCodeScreen() {
               />
             </View>
 
-            {/* resend countdown / resend link */}
-            <View style={styles.timerRow}>
+            {/* resend: a real Pressable with a generous hit area. While the
+                countdown runs, tapping still responds (with a hint toast) so
+                the control never feels dead. */}
+            <Pressable
+              onPress={left > 0 ? () => toast(`You can request a new code in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}.`, 'info') : resend}
+              disabled={busy}
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityLabel={left > 0 ? `Resend code available in ${Math.floor(left / 60)} minutes ${left % 60} seconds` : 'Resend code'}
+              style={({ pressed }) => [styles.timerRow, styles.resendTap, pressed && { opacity: 0.6 }]}
+            >
               {left > 0 ? (
-                <>
+                <View style={styles.timerInner}>
                   <ClockIcon size={16} color="#00D2FF" />
                   <Text style={styles.timerText}>  Resend code in </Text>
                   <Text style={styles.timerTime}>{mm}:{ss}</Text>
-                </>
+                </View>
               ) : (
-                <Text
-                  style={styles.resendLink}
-                  onPress={resend}
-                >
-                  Resend code
-                </Text>
+                <Text style={styles.resendLink}>Resend code</Text>
               )}
-            </View>
+            </Pressable>
 
             {busy ? <Text style={styles.verifying}>{`Verifying${'.'.repeat(vDots)}`}</Text> : null}
 
@@ -253,7 +257,9 @@ const styles = StyleSheet.create({
   box: { backgroundColor: '#0b1026', borderWidth: 2, borderColor: '#2d3348', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   boxActive: { borderWidth: 2, borderColor: 'transparent' },
   digit: { color: '#fff', fontSize: 26, fontWeight: '700' },
-  timerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18, minHeight: 20 },
+  timerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, minHeight: 20 },
+  resendTap: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 4, justifyContent: 'center' },
+  timerInner: { flexDirection: 'row', alignItems: 'center' },
   timerText: { color: '#d8dce8', fontSize: 14 },
   timerTime: { color: '#00D2FF', fontSize: 14, fontWeight: '600' },
   resendLink: { color: '#6C63FF', fontSize: 15, fontWeight: '600' },
