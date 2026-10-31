@@ -83,6 +83,20 @@ function readIdentity(result: any): { primaryEmail: string; name: string; google
 }
 
 /**
+ * Forget the Google account cached by the SDK.
+ * Without this the SDK silently reuses the last account on the next tap of
+ * "Continue with Google" (the account you just logged out of). revokeAccess
+ * also drops the app's grant so the picker is shown fresh; both calls are
+ * best-effort and never throw (e.g. when nobody was signed in with Google).
+ */
+export async function googleSignOut(): Promise<void> {
+  if (!isGoogleSdkReady()) return;
+  configure();
+  try { await GoogleSignin.signOut(); } catch { /* not signed in with Google */ }
+  try { await GoogleSignin.revokeAccess(); } catch { /* nothing to revoke */ }
+}
+
+/**
  * Open the Google account picker and return the signed ID token plus the
  * account's email / name / Google ID / avatar. Any account on the device can
  * sign in — the backend verifies the token with Google itself.
@@ -92,6 +106,10 @@ export async function googleSignInToken(): Promise<GoogleIdentity> {
   configure();
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    // Always show the account chooser: drop any account the SDK still has
+    // cached so a previous (logged-out) account is never silently reused.
+    try { await GoogleSignin.signOut(); } catch { /* nothing cached */ }
 
     const result: any = await GoogleSignin.signIn();
 

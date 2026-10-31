@@ -11,6 +11,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { googleSignOut } from './googleAuth';
 
 /* StreamMax backend — domain-swappable: this is the ONLY place the URL lives.
    Render free tier; flip to the .com infrastructure when the domain is bought. */
@@ -94,6 +95,10 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export async function logout() {
   memorySession = null;
   await AsyncStorage.removeItem(SESSION_KEY);
+  // Also forget the Google account the SDK cached, so the next
+  // "Continue with Google" shows the account chooser instead of silently
+  // signing straight back into the account that was just logged out.
+  await googleSignOut();
 }
 
 /* ---------- registration ---------- */
