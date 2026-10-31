@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View,
 } from 'react-native';
+import { StatusBar } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -90,19 +92,29 @@ export default function LoginScreen() {
   const gutter = Math.min(44, Math.max(24, Math.round(W * 0.066)));
 
   return (
-    <View style={[styles.root, { backgroundColor: '#000000' }]}>
-      {/* darkened collage: visible at the center, fading to black on both sides */}
-      <Image
-        source={require('../assets/img/login_hero_fade.png')}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%' }}
-        resizeMode="cover"
-      />
-      {/* designed bottom glow: deep blue-violet rising from the bottom edge */}
-      <Image
-        source={require('../assets/img/login_bottom_glow.png')}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '14%' }}
-        resizeMode="stretch"
-      />
+    <View style={[styles.root, { backgroundColor: '#03051A' }]}>
+      <StatusBar barStyle="light-content" />
+      {/* ONE continuous cinematic background: the collage fills the whole
+          screen and a navy scrim darkens it toward the bottom, so there is no
+          hard edge where the artwork stops. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Image
+          source={require('../assets/img/login_hero_fade.png')}
+          style={{ width: '100%', height: '100%', opacity: 0.95 }}
+          resizeMode="cover"
+        />
+        <LinearGradient
+          colors={['rgba(3,5,26,0.30)', 'rgba(3,5,26,0.62)', 'rgba(3,5,26,0.94)', '#03051A']}
+          locations={[0, 0.35, 0.78, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* decorative blue-violet arc rising from the bottom edge */}
+        <Image
+          source={require('../assets/img/login_bottom_glow.png')}
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '16%', opacity: 0.9 }}
+          resizeMode="stretch"
+        />
+      </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -113,13 +125,15 @@ export default function LoginScreen() {
         >
           <View style={[styles.content, { paddingHorizontal: gutter, paddingTop: insets.top + 28, paddingBottom: 16 }]}>
 
-            {/* logo + app name + tagline */}
-            <Lockup scale={1.05} />
+            {/* logo + app name + tagline (centred) */}
+            <View style={styles.brand}>
+              <Lockup scale={1.0} />
+            </View>
 
-            {/* heading + sub */}
+            {/* heading + sub (centred) */}
             <View style={styles.titleRow}>
               <Text style={styles.title}>Welcome </Text>
-              <GradientText text="Back" size={32} width={110} height={40} weight="800" colorsArr={['#3A78FF', '#A044FF']} />
+              <GradientText text="Back" size={32} width={112} height={40} weight="800" colorsArr={['#00E5FF', '#2979FF', '#7D2AE8']} />
             </View>
             <Text style={styles.sub}>
               Log in to continue watching your favorite movies and shows.
@@ -186,10 +200,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { flex: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 28 },
+  brand: { alignItems: 'center', marginTop: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   title: { color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { color: '#9CA3AF', fontSize: 15, lineHeight: 22, marginTop: 10 },
-  fieldStack: { marginTop: 26, gap: 14 },
+  sub: { color: '#9CA3AF', fontSize: 15, lineHeight: 22, marginTop: 10, textAlign: 'center', paddingHorizontal: 6 },
+  fieldStack: { marginTop: 24, gap: 12 },
   rememberRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 20, paddingHorizontal: 2,
@@ -201,8 +216,8 @@ const styles = StyleSheet.create({
   },
   checkOn: { backgroundColor: '#7B2CBF', borderColor: '#7B2CBF' },
   rememberText: { color: '#e4e6f5', fontSize: 15, marginLeft: 10 },
-  forgot: { color: '#6C63FF', fontSize: 15, fontWeight: '600' },
+  forgot: { color: '#8B7BFF', fontSize: 15, fontWeight: '600' },
   signRow: { flexDirection: 'row', justifyContent: 'center', paddingBottom: 6, minHeight: 40, alignItems: 'center' },
   signText: { color: '#d7d9ea', fontSize: 15 },
-  signLink: { color: '#6C63FF', fontSize: 16, fontWeight: '700' },
+  signLink: { color: '#8B7BFF', fontSize: 16, fontWeight: '700' },
 });
