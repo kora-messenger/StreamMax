@@ -119,7 +119,7 @@ export const Field = ({
   if (active) {
     return (
       <LinearGradient
-        colors={['#00d2ff', '#6C63FF', '#b300ff']}
+        colors={['#00E5FF', '#2979FF', '#7D2AE8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[s.fieldBorder, style]}>
@@ -316,14 +316,14 @@ const s = StyleSheet.create({
   outlineText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   fieldBorder: { borderRadius: 16, padding: 1.4 },
   fieldBorderIdle: {
-    borderRadius: 16, borderWidth: 1.2, borderColor: '#2d2f45', overflow: 'hidden',
+    borderRadius: 16, borderWidth: 1.2, borderColor: '#2A2E3D', overflow: 'hidden',
   },
   fieldBorderError: { borderColor: '#ff4d6d' },
   field: {
-    height: 56, borderRadius: 15, backgroundColor: '#0f121c',
+    height: 56, borderRadius: 15, backgroundColor: '#12141C',
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18,
   },
-  fieldActive: { backgroundColor: '#0e1020' },
+  fieldActive: { backgroundColor: '#0E1220' },
   fieldIcon: { width: 34 },
   fieldInput: { flex: 1, color: '#fff', fontSize: 16, paddingVertical: 0, height: 56 },
   orRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },

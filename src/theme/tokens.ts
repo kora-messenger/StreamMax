@@ -20,7 +20,7 @@ export const gradients = {
   brand: ['#6C63FF', '#00D2FF'],
   button: ['#8822fb', '#4337fc', '#1168fd'],
   accent: ['#00d2ff', '#9d50bb'],
-  wordmark: ['#00d2ff', '#b300ff'],
+  wordmark: ['#00E5FF', '#2979FF', '#7D2AE8'],
   glow: ['#6C63FF', '#00D2FF'],
 };
 
