@@ -194,7 +194,7 @@ export default function MeScreen() {
           <Text style={styles.logoutTxt}>Log Out</Text>
         </Pressable>
       </ScrollView>
-      <BottomNavBar active="mine" onPress={(id: BottomTabId) => { if (id === 'home') nav.navigate('Home'); if (id === 'search') nav.navigate('Dramas'); }} />
+      <BottomNavBar active="mine" onPress={(id: BottomTabId) => { if (id === 'home') nav.navigate('Home'); if (id === 'search') nav.navigate('Dramas'); if (id === 'downloads') nav.navigate('Downloads'); }} />
     </LinearGradient>
   );
 }

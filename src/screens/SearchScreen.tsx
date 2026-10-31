@@ -4,6 +4,7 @@ import BottomNavBar, { BottomTabId } from '../components/BottomNavBar';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useToast } from '../components/ui';
 import {
   communities, recentSearches, searchTabs, titles, trendingSearches,
 } from '../data/mock';
@@ -19,6 +20,7 @@ const Chip = ({ label, onPress }: { label: string; onPress: () => void }) => (
 export default function SearchScreen() {
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const [q, setQ] = useState('');
   const [recent, setRecent] = useState(recentSearches);
   const [tab, setTab] = useState(0);
@@ -93,7 +95,13 @@ export default function SearchScreen() {
         {tab === 4 ? (
           <View style={{ paddingHorizontal: 16 }}>
             {communities.map(c => (
-              <View key={c.id} style={styles.commRow}>
+              <Pressable
+                key={c.id}
+                style={styles.commRow}
+                onPress={() => toast('Community spaces are coming soon', 'info')}
+                accessibilityRole="button"
+                accessibilityLabel={`${c.name} community`}
+              >
                 <LinearGradient colors={gradients.brand} style={styles.commAvatar}>
                   <Text style={styles.commInitial}>{c.name[0]}</Text>
                 </LinearGradient>
@@ -102,14 +110,26 @@ export default function SearchScreen() {
                   <Text style={styles.rowMeta}>{c.members}</Text>
                   <Text style={styles.rowTag}>{c.tags}</Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
+          </View>
+        ) : tab !== 0 ? (
+          <View style={{ paddingHorizontal: 24, paddingTop: 28 }}>
+            <Text style={styles.emptyNote}>
+              No {searchTabs[tab].toLowerCase()} in the catalogue yet.{'\n'}Switch to Movie to keep searching.
+            </Text>
           </View>
         ) : (
           <View style={{ paddingHorizontal: 16 }}>
             {filtered.length === 0 ? <Text style={styles.empty}>No results found</Text> : null}
             {filtered.map((t, i) => (
-              <View key={t.id} style={styles.row}>
+              <Pressable
+                key={t.id}
+                style={styles.row}
+                onPress={() => nav.navigate('MovieView', { title: t.title, year: t.year, genre: t.genre, image: t.poster })}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${t.title}`}
+              >
                 <View style={[styles.rank, i < 3 ? styles.rankTop : null]}>
                   <Text style={styles.rankText}>{i + 1}</Text>
                 </View>
@@ -118,7 +138,7 @@ export default function SearchScreen() {
                   <Text numberOfLines={1} style={styles.rowTitle}>{t.title}</Text>
                   <Text style={styles.rowMeta}>{t.year} | {t.genre}</Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -126,13 +146,14 @@ export default function SearchScreen() {
 
       <BottomNavBar
         active="search"
-        onPress={(id: BottomTabId) => { if (id === 'home') nav.goBack(); }}
+        onPress={(id: BottomTabId) => { if (id === 'home') nav.goBack(); if (id === 'search') nav.navigate('Dramas'); if (id === 'downloads') nav.navigate('Downloads'); if (id === 'mine') nav.navigate('Me'); }}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  emptyNote: { color: '#9CA3AF', fontSize: 14, lineHeight: 21, textAlign: 'center' },
   root: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 54 },
   field: {

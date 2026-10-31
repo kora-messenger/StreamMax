@@ -87,6 +87,8 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(1);
+  /* Football (0) and Nollywood (3) have no titles in the catalogue yet */
+  const emptyTab = tab === 0 || tab === 3;
   const [me, setMe] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(() => !hasLoaded('home'));
   const [online, setOnline] = useState(true);
@@ -207,9 +209,22 @@ export default function HomeScreen() {
               )}
             />
           </View>
-          <Section heading="Trending Now" data={titles.slice(0, 8)} />
-          <Section heading="Popular Movies" data={titles.slice(4, 12)} />
-          <Section heading="New Releases" data={[...titles].reverse().slice(0, 8)} />
+          {emptyTab ? (
+            <View style={styles.emptyTab}>
+              <Text style={styles.emptyTabTitle}>Nothing in {categories[tab]} yet</Text>
+              <Text style={styles.emptyTabSub}>
+                {categories[tab] === 'Football'
+                  ? 'Live football isn’t part of StreamMax yet. Switch to Trending to keep browsing.'
+                  : 'No Nollywood titles have been added yet. Switch to Trending to keep browsing.'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Section heading={tab === 2 ? 'Movies' : 'Trending Now'} data={tab === 2 ? titles : titles.slice(0, 8)} />
+              <Section heading="Popular Movies" data={titles.slice(4, 12)} />
+              <Section heading="New Releases" data={[...titles].reverse().slice(0, 8)} />
+            </>
+          )}
         </View>
         </>
         )}
@@ -218,7 +233,7 @@ export default function HomeScreen() {
       {/* floating round bottom button bar */}
       <BottomNavBar
         active="home"
-        onPress={(id: BottomTabId) => { if (id === 'search') nav.navigate('Dramas'); if (id === 'mine') nav.navigate('Me'); }}
+        onPress={(id: BottomTabId) => { if (id === 'search') nav.navigate('Dramas'); if (id === 'downloads') nav.navigate('Downloads'); if (id === 'mine') nav.navigate('Me'); }}
       />
 
       {/* Fixed top bar + tabs (overlay) */}
@@ -256,6 +271,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  emptyTab: { marginTop: 34, paddingHorizontal: 24, alignItems: 'center' },
+  emptyTabTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  emptyTabSub: { color: '#9CA3AF', fontSize: 13.5, lineHeight: 20, textAlign: 'center', marginTop: 8 },
   root: { flex: 1, backgroundColor: colors.bg },
   top: { position: 'absolute', top: 0, left: 0, right: 0 },
   bar: { height: BAR_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },

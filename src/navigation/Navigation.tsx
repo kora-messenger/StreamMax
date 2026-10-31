@@ -14,6 +14,7 @@ import DramasScreen from '../screens/DramasScreen';
 import DramaPlayerScreen from '../screens/DramaPlayerScreen';
 import MovieViewScreen from '../screens/MovieViewScreen';
 import MeScreen from '../screens/MeScreen';
+import DownloadsScreen from '../screens/DownloadsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import InAppBrowserScreen from '../screens/InAppBrowserScreen';
@@ -44,6 +45,7 @@ export default function Navigation() {
         <Stack.Screen name="Dramas" component={DramasScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="DramaPlayer" component={DramaPlayerScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="MovieView" component={MovieViewScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Downloads" component={DownloadsScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Me" component={MeScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="About" component={AboutScreen} options={{ animation: 'slide_from_right' }} />

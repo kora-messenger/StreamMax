@@ -232,7 +232,7 @@ export default function DramasScreen() {
       </ScrollView>
       <BottomNavBar
         active="search"
-        onPress={(id: BottomTabId) => { if (id === 'home') nav.navigate('Home'); if (id === 'mine') nav.navigate('Me'); }}
+        onPress={(id: BottomTabId) => { if (id === 'home') nav.navigate('Home'); if (id === 'downloads') nav.navigate('Downloads'); if (id === 'mine') nav.navigate('Me'); }}
       />
     </View>
   );

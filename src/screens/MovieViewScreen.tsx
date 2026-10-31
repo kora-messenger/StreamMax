@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
   Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
+Share,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useToast } from '../components/ui';
 import { titles } from '../data/mock';
 import {
   BackIcon, CheckIcon, ChevronDownIcon, CloseIcon, CrownIcon, DownloadIcon, FullscreenIcon,
@@ -48,6 +50,8 @@ export default function MovieViewScreen() {
   const insets = useSafeAreaInsets();
   const { title, year, genre, image } = route.params ?? {};
 
+  const toast = useToast();
+  const [inList, setInList] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [epTab, setEpTab] = useState(0); // 0 = All
   const [tab, setTab] = useState(0); // 0 = For you
@@ -99,7 +103,26 @@ export default function MovieViewScreen() {
             { label: 'Download', icon: <DownloadIcon size={24} /> },
             { label: 'View', icon: <PlayIcon size={24} /> },
           ].map((c, i) => (
-            <Pressable key={c.label} style={styles.chipBtn} onPress={() => (i === 2 ? setSheet(true) : undefined)}>
+            <Pressable
+              key={c.label}
+              style={styles.chipBtn}
+              accessibilityRole="button"
+              accessibilityLabel={c.label}
+              onPress={() => {
+                if (i === 0) {
+                  setInList(v => {
+                    toast(v ? 'Removed from your list' : 'Added to your list', 'info');
+                    return !v;
+                  });
+                } else if (i === 1) {
+                  Share.share({ message: `${title} — watch on StreamMax` }).catch(() => {});
+                } else if (i === 2) {
+                  setSheet(true);
+                } else {
+                  nav.navigate('DramaPlayer', { title, episodes: 32, poster: image });
+                }
+              }}
+            >
               {c.icon}
               <Text style={styles.chipLabel}>{c.label}</Text>
             </Pressable>
@@ -217,7 +240,15 @@ export default function MovieViewScreen() {
             <Pressable onPress={() => setSelected(s => (s.length === EPISODES.length ? [] : EPISODES.map((_, i) => i)))}>
               <View style={styles.selAll}><CircleCheck on={selected.length === EPISODES.length} /><Text style={styles.selAllText}>Select All</Text></View>
             </Pressable>
-            <Pressable onPress={() => setSheet(false)}>
+            <Pressable
+              onPress={() => {
+                if (selected.length === 0) { toast('Select at least one episode', 'info'); return; }
+                setSheet(false);
+                toast('Downloads are not available yet.', 'info');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Download selected episodes"
+            >
               <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.dlAll}>
                 <Text style={styles.dlAllText}>Download</Text>
               </LinearGradient>

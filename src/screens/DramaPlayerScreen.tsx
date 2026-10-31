@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, FlatList, Image, PanResponder, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Animated, FlatList, Image, Modal, PanResponder, Pressable, Share, StyleSheet, Text, View,
   useWindowDimensions,
 } from 'react-native';
 import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { TEST_HLS } from '../components/VideoPlayer';
+import { useToast } from '../components/ui';
 import {
   BookmarkRibbonIcon, ChevronDownIcon, CrownIcon, DialIcon, DownloadTrayIcon, ShareIcon, StackIcon,
 } from '../components/icons';
@@ -49,6 +50,7 @@ const PlayTri = ({ size = 26 }: { size?: number }) => (
 export default function DramaPlayerScreen() {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { height: H } = useWindowDimensions();
   const { title, episodes = 32, poster } = route.params ?? {};
@@ -56,6 +58,7 @@ export default function DramaPlayerScreen() {
   const [active, setActive] = useState(0); // episode index 0-based
   const [paused, setPaused] = useState(false);
   const [controls, setControls] = useState(true);
+  const [epPicker, setEpPicker] = useState(false);
   const [pos, setPos] = useState(0);
   const [duration, setDuration] = useState(0);
   const [buffering, setBuffering] = useState(true);
@@ -197,14 +200,26 @@ export default function DramaPlayerScreen() {
 
         {/* right icon column */}
         <View style={styles.rightCol}>
-          <Pressable style={styles.rBtn} onPress={() => {}}>
+          <Pressable
+            style={styles.rBtn}
+            onPress={() => toast('Downloads are not available yet.', 'info')}
+            accessibilityRole="button"
+            accessibilityLabel="Download this episode"
+          >
             <DownloadTrayIcon size={23} />
           </Pressable>
           <Pressable style={styles.rBtn} onPress={() => setSaved(s => !s)}>
             <BookmarkRibbonIcon size={21} color={saved ? '#0FFFB0' : '#fff'} filled={saved} />
             <Text style={styles.rCount}>{saved ? 79 : 78}</Text>
           </Pressable>
-          <Pressable style={styles.rBtn} onPress={() => {}}>
+          <Pressable
+            style={styles.rBtn}
+            onPress={() => {
+              Share.share({ message: `${title} — ${epLabel} on StreamMax` }).catch(() => {});
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Share this drama"
+          >
             <ShareIcon size={21} />
           </Pressable>
         </View>
@@ -227,7 +242,12 @@ export default function DramaPlayerScreen() {
           </View>
 
           {/* episode selector pill */}
-          <Pressable style={styles.epPill} onPress={() => {}}>
+          <Pressable
+            style={styles.epPill}
+            onPress={() => setEpPicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Choose episode, currently ${epLabel}`}
+          >
             <StackIcon size={14} />
             <Text style={styles.epPillTxt}>{epLabel} / EP{episodes}</Text>
             <ChevronDownIcon size={13} color="#fff" />
@@ -246,7 +266,12 @@ export default function DramaPlayerScreen() {
 
           {/* utility row */}
           <View style={styles.utilRow}>
-            <Pressable style={styles.premium} onPress={() => {}}>
+            <Pressable
+              style={styles.premium}
+              onPress={() => toast('Premium is coming soon.', 'info')}
+              accessibilityRole="button"
+              accessibilityLabel="Premium Pro"
+            >
               <CrownIcon size={11} color="#B8860B" />
               <Text style={styles.premiumTxt}>Premium Pro</Text>
             </Pressable>
@@ -262,6 +287,37 @@ export default function DramaPlayerScreen() {
         </View>
       </Animated.View>
 
+      {/* episode picker — jumps the vertical feed to the chosen episode */}
+      <Modal visible={epPicker} transparent animationType="fade" onRequestClose={() => setEpPicker(false)}>
+        <Pressable style={styles.epBackdrop} onPress={() => setEpPicker(false)} />
+        <View style={[styles.epSheet, { paddingBottom: insets.bottom + 14 }]}>
+          <Text style={styles.epSheetTitle}>{title} · {episodes} episodes</Text>
+          <FlatList
+            data={Array.from({ length: episodes }, (_, i) => i)}
+            keyExtractor={(i) => String(i)}
+            style={{ maxHeight: 360 }}
+            renderItem={({ item }) => {
+              const on = item === active;
+              return (
+                <Pressable
+                  style={[styles.epItem, on && styles.epItemOn]}
+                  onPress={() => {
+                    setEpPicker(false);
+                    setActive(item);
+                    try { listRef.current?.scrollToIndex({ index: item, animated: true }); } catch {}
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Episode ${item + 1}${on ? ', playing' : ''}`}
+                >
+                  <Text style={[styles.epItemTxt, on && { color: ACCENT }]}>EP{pad2(item + 1)}</Text>
+                  {on ? <Text style={[styles.epItemTxt, { color: ACCENT }]}>Playing</Text> : null}
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </Modal>
+
       {/* seek line — always tappable, the only way to forward */}
       <View style={[styles.seekZone, { bottom: insets.bottom + 6 }]} {...pan.panHandlers}>
         <View style={[styles.track, scrub && styles.trackScrub]}>
@@ -274,6 +330,19 @@ export default function DramaPlayerScreen() {
 }
 
 const styles = StyleSheet.create({
+  epBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
+  epSheet: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: '#0B0F24', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 16, paddingHorizontal: 16, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  epSheetTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  epItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 13, paddingHorizontal: 12, borderRadius: 10,
+  },
+  epItemOn: { backgroundColor: 'rgba(0,242,254,0.10)' },
+  epItemTxt: { color: '#E5E7F0', fontSize: 14, fontWeight: '600' },
   root: { flex: 1, backgroundColor: '#000' },
   center: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
   playBtn: {
